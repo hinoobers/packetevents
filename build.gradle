@@ -1,83 +1,149 @@
-plugins {
-    id 'java'
-    id 'maven-publish'
-}
-
-//gradle myJavadocs
-task myJavadocs(type: Javadoc) {
-    source = sourceSets.main.allJava
-    File projectDir = getProjectDir()
-    File javadocsDir = new File(projectDir.getParentFile().getAbsolutePath() + "/docs");
-    javadocsDir.mkdirs()
-    setDestinationDir(javadocsDir)
+buildscript {
+    repositories {
+        maven {
+            url = 'https://maven.minecraftforge.net'
+        }
+        maven {
+            url = 'https://repo.codemc.io/repository/maven-snapshots/'
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+    }
 }
 
 repositories {
-    mavenLocal()
     maven {
-        url = uri('https://hub.spigotmc.org/nexus/content/repositories/snapshots/')
+        url = 'https://repo.codemc.io/repository/maven-snapshots/'
     }
-
-    maven {
-        url 'https://papermc.io/repo/repository/maven-public/'
-    }
-
-    maven {
-        url 'https://repo.opencollab.dev/maven-snapshots/'
-    }
-
-    maven {
-        url 'https://repo.opencollab.dev/maven-releases/'
-    }
-
-    maven {
-        url = uri('https://jitpack.io/')
-    }
-
-    maven {
-        url = uri('https://nexus.funkemunky.cc/content/repositories/releases/')
-    }
-
-    maven {
-        url = uri('https://repo.viaversion.com/')
-    }
-
-    maven {
-        url = uri('https://oss.sonatype.org/content/repositories/releases/')
-    }
-
-    maven {
-        url = uri('https://repo.maven.apache.org/maven2/')
-    }
-    mavenCentral()
 }
 
-dependencies {
-    implementation 'org.jetbrains:annotations:23.0.0'
+apply plugin: 'net.minecraftforge.gradle'
+// Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
+apply plugin: 'eclipse'
+apply plugin: 'maven-publish'
 
-    compileOnly 'org.spigotmc:spigot-api:1.17-R0.1-SNAPSHOT'
-    compileOnly 'com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT'
-    compileOnly 'com.viaversion:viaversion-api:4.0.1'
-    compileOnly 'com.github.ProtocolSupport:ProtocolSupport:3d24efeda6'
+version = '1.0'
+group = 'io.github.retrooper.packetevents' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+archivesBaseName = 'packetevents'
 
-    compileOnly 'org.github.spigot:1.16.2:1.16.2'
-    compileOnly 'org.github.spigot:1.8.8:1.8.8'
-    compileOnly 'org.github.spigot:1.7.10:1.7.10'
-}
+project.ext.adventureVersion = '4.10.1'
+project.ext.adventureDependencies=["net.kyori:adventure-api:${adventureVersion}",
+                                   "net.kyori:adventure-text-serializer-gson:${adventureVersion}",
+                                   "net.kyori:adventure-text-serializer-legacy:${adventureVersion}",
+                                   "net.kyori:adventure-text-serializer-gson-legacy-impl:${adventureVersion}",
+                                   "net.kyori:adventure-key:${adventureVersion}",
+                                   "net.kyori:adventure-nbt:${adventureVersion}",
+                                   "net.kyori:examination-api:1.3.0",
+                                   "net.kyori:examination-string:1.3.0"]
 
-group = 'io.github.retrooper'
-version = '1.8.4'
-description = 'packetevents'
-java.sourceCompatibility = JavaVersion.VERSION_1_8
-java.targetCompatibility = JavaVersion.VERSION_1_8
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from(components.java)
+java.toolchain.languageVersion = JavaLanguageVersion.of(8) // Mojang ships Java 8 to end users, so your mod should target Java 8.
+
+println('Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' + System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
+minecraft {
+    // The mappings can be changed at any time, and must be in the following format.
+    // Channel:   Version:
+    // snapshot   YYYYMMDD   Snapshot are built nightly.
+    // stable     #          Stables are built at the discretion of the MCP team.
+    // official   MCVersion  Official field/method names from Mojang mapping files
+    //
+    // You must be aware of the Mojang license when using the 'official' mappings.
+    // See more information here: https://github.com/MinecraftForge/MCPConfig/blob/master/Mojang.md
+    //
+    // Use non-default mappings at your own risk. they may not always work.
+    // Simply re-run your setup task after changing the mappings to update your workspace.
+    mappings channel: 'official', version: '1.16.5'
+    // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
+
+    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    // Default run configurations.
+    // These can be tweaked, removed, or duplicated as needed.
+    runs {
+        client {
+            workingDirectory project.file('run')
+            arg "-mixin.config=packetevents.mixins.json"
+            mods {
+                fancymenu {
+                    source sourceSets.main
+                }
+            }
+        }
+        server {
+            workingDirectory project.file('run_server')
+            arg "-mixin.config=packetevents.mixins.json"
+            mods {
+                fancymenu {
+                    source sourceSets.main
+                }
+            }
         }
     }
 }
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
+// Include resources generated by data generators.
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+dependencies {
+    // Specify the version of Minecraft to use, If this is any group other then 'net.minecraft' it is assumed
+    // that the dep is a ForgeGradle 'patcher' dependency. And it's patches will be applied.
+    // The userdev artifact is a special name and will get all sorts of transformations applied to it.
+    minecraft 'net.minecraftforge:forge:1.16.5-36.2.39'
+
+    // You may put jars on which you depend on in ./libs or you may define them like so..
+    // compile "some.group:artifact:version:classifier"
+    // compile "some.group:artifact:version"
+
+    // Real examples
+    // compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env
+    // compile 'com.googlecode.efficient-java-matrix-library:ejml:0.24' // adds ejml to the dev env
+
+    // The 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
+    // provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
+
+    // These dependencies get remapped to your current MCP mappings
+    // deobf 'com.mod-buildcraft:buildcraft:6.0.8:dev'
+
+    // For more info...
+    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
+    // http://www.gradle.org/docs/current/userguide/dependency_management.html
+
+    implementation 'com.github.retrooper.packetevents:netty-common:2.0.0-SNAPSHOT'
+    implementation adventureDependencies
 }
+
+// Example for how to get properties into the manifest for reading by the runtime..
+jar {
+    manifest {
+        attributes([
+                "Specification-Title": "packetevents",
+                "Specification-Vendor": "packeteventssareus",
+                "Specification-Version": "1", // We are version 1 of ourselves
+                "Implementation-Title": project.name,
+                "Implementation-Version": "${version}",
+                "Implementation-Vendor" :"packeteventssareus",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+// Example configuration to allow publishing using the maven-publish task
+// This is the preferred method to reobfuscate your jar file
+jar.finalizedBy('reobfJar')
+// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
+//publish.dependsOn('reobfJar')
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+        }
+    }
+    repositories {
+        maven {
+            url "file:///${project.projectDir}/mcmodsrepo"
+        }
+    }
+}
+
